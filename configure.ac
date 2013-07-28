@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.63])
-AC_INIT([guile-noweb-autotools], [0.1.0], [shane.celis@gmail.com])
+AC_INIT([guile-noweb-autotools], [0.1.0], [you@somewhere.com])
 AC_CONFIG_AUX_DIR([support/build-aux])
 
 # We're going to use GNUMake and we're going to like it.
@@ -12,7 +12,6 @@ AC_CONFIG_MACRO_DIR([support/m4])
 # Checks for programs.
 AC_PROG_CC_C_O
 # CXX required for OpenGL, GL, and GLUT libraries.
-AC_PROG_CXX 
 AC_PROG_LIBTOOL
 AX_CHECK_NOWEB
 AC_PATH_PROG([PERL], [perl])
@@ -26,16 +25,6 @@ AC_SUBST(guile_snarf)
 
 # Checks for libraries.
 PKG_CHECK_MODULES([GUILE], [guile-2.0])
-
-
-dnl AX_CHECK_GL* doesn't respect --with-gl=nox argument :(
-AC_CANONICAL_HOST
-AS_CASE([${host}],
-        [*-darwin*],
-        [AC_SUBST(GL_LDFLAGS, ["-framework OpenGL"])
-         AC_SUBST(GLUT_LDFLAGS, ["-framework GLUT"])
-         AC_SUBST(GLU_LDFLAGS, [])],
-        [AX_CHECK_GLUT])
 
 # Checks for header files.
 AC_HEADER_STDC

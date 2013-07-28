@@ -7,6 +7,6 @@ Name: <my library>
 Description: <library to do something>
 URL: <homepage>
 Version: @VERSION@
-Requires: <dependencies>
-Libs: <link flags>
-Cflags: <compile flags>
+Requires: guile-2.0
+Libs: -L${libdir} -lhello-world
+Cflags: -I${includedir}

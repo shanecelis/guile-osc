@@ -5,9 +5,10 @@ SUFFIXES = .nw
 
 if NOWEB
 NOWEB_INCLUDES ?=
+NOWEAVE_FLAGS ?= -n -delay
 %.tex : %.nw 
 	$(AM_V_at) $(MAKE) all.defs
-	$(AM_V_GEN) $(noweave) $(NOWEAVE_FLAGS) -n -delay -indexfrom all.defs $^ | cpif $@
+	$(AM_V_GEN) $(noweave) $(NOWEAVE_FLAGS) -indexfrom all.defs $^ | cpif $@
 
 warn_notangle = $(top_builddir)/bin/warn-notangle
 
@@ -29,7 +30,7 @@ all.defs: $(NOWEB_DEFS)
 %.nw.files : %.nw
 	$(AM_V_GEN) $(noroots) $^ | $(GREP) file: | $(PERL) -pe 's/<<file:(\S+)>>/\1/g;' | cpif $@
 
-# %-paper.nw : %.nw $(top_srcdir)/support/noweb/paper-wrapper.nw
+#%-paper.nw : %.nw $(top_srcdir)/support/noweb/paper-wrapper.nw
 # 	$(AM_V_GEN) (cat $(top_srcdir)/support/noweb/paper-wrapper.nw |	perl -pe "s/\\@FILE\\@/$$(basename -s .nw $<)/;") | cpif $@
 
 NOWEB_DEFS = $(NOWEB_FILES:.nw=.defs)
