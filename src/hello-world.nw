@@ -1,0 +1,26 @@
+\section{Introduction}
+
+This project is a template for making an Guile project that uses Noweb
+with autotools.
+
+<<file:hello-world.c>>=
+#include <libguile.h>
+#ifndef SCM_MAGIC_SNARFER 
+#include <stdio.h>
+#endif
+
+SCM_DEFINE (scm_print_hello, "print-hello", 
+            0, 0, 0,
+            (),
+            "Say hello.")
+{
+  printf("Hello, World!\n");
+}
+
+void init_hello_world() 
+{
+#ifndef SCM_MAGIC_SNARFER 
+#include "hello-world.c.x"
+#endif
+}
+@ 
