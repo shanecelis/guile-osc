@@ -3,7 +3,7 @@ include $(top_srcdir)/support/automake/guile.am
 
 .SECONDARY:
 
-NOWEAVE_FLAGS =
+NOWEAVE_FLAGS = -n -delay
 BUILT_SOURCES = $(NOWEB_BUILT_FILES) hello-world.c.x 
 CLEANFILES = $(NOWEB_CLEANFILES) hello-world.c.x 
 
@@ -38,4 +38,4 @@ libguile_hello_world_la_LIBADD  = $(GUILE_LIBS)
 libguile_hello_world_la_SOURCES = hello-world.c
 include_HEADERS = hello-world.h 
 
-MAINTAINERCLEANFILES = Makefile.in config.h.in 
+MAINTAINERCLEANFILES = Makefile.in config.h.in hello-world-test
