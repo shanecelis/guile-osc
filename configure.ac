@@ -7,11 +7,11 @@ AC_CONFIG_AUX_DIR([support/build-aux])
 
 # We're going to use GNUMake and we're going to like it.
 AM_INIT_AUTOMAKE([-Wall foreign -Wno-portability])
-AM_EXTRA_RECURSIVE_TARGETS([run show-doc])
+AM_EXTRA_RECURSIVE_TARGETS([run doc show-doc])
 AC_CONFIG_MACRO_DIR([support/m4])
 # Checks for programs.
 AC_PROG_CC_C_O
-# CXX required for OpenGL, GL, and GLUT libraries.
+GUILE_PROGS
 AC_PROG_LIBTOOL
 AX_CHECK_NOWEB
 AC_PATH_PROG([PERL], [perl])
@@ -45,7 +45,9 @@ AC_CONFIG_HEADERS([src/config.h])
 AC_CONFIG_FILES([ Makefile
                   bin/Makefile 
                   src/Makefile 
-                  tests/Makefile 
+                  tests/Makefile
+                  support/pkg-config/Makefile
+                  support/pkg-config/guile-noweb-autotools.pc
                   ], [])
 AC_CONFIG_FILES([ tests/works-without-noweb.sh ], [chmod +x tests/works-without-noweb.sh])
 AC_CONFIG_FILES([bin/env], [chmod a+x bin/env])

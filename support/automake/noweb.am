@@ -1,14 +1,20 @@
 # noweb.am
 #SUFFIXES += .nw .tex .pdf
 
-SUFFIXES = .nw 
+SUFFIXES = .nw .html .tex
 
 if NOWEB
+
 NOWEB_INCLUDES ?=
 NOWEAVE_FLAGS ?= -n -delay
+NOWEAVE_HTML_FLAGS ?= -filter l2h -index -html
+
 %.tex : %.nw 
 	$(AM_V_at) $(MAKE) all.defs
 	$(AM_V_GEN) $(noweave) $(NOWEAVE_FLAGS) -indexfrom all.defs $^ | cpif $@
+
+%.html : %.nw 
+	$(AM_V_GEN) $(noweave) $(NOWEAVE_HTML_FLAGS) $^ | cpif $@
 
 warn_notangle = $(top_builddir)/bin/warn-notangle
 
@@ -53,6 +59,10 @@ if PDFLATEX
 	$(AM_V_GEN) $(pdflatex) -draftmode -interaction=nonstopmode -halt-on-error $< 
 	noindex $<
 	$(AM_V_GEN) $(pdflatex) -interaction=nonstopmode -halt-on-error $< 
+
+pdf-local: $(NOWEB_DOCS) 
+
+doc-local: pdf-local
 
 else
 %.pdf : %.tex

@@ -29,6 +29,9 @@ SCM_LOG_COMPILER = $(ENV) guile
 
 lib_LTLIBRARIES = libguile-hello-world.la
 
+guilemoduledir = $(prefix)/share/guile/site/
+dist_guilemodule_DATA = 
+
 AM_CFLAGS  = $(GUILE_CFLAGS)
 hello_world_test_c_LDADD   = $(GUILE_LIBS) libguile-hello-world.la
 hello_world_test_c_LDFLAGS = $(GUILE_LDFLAGS)

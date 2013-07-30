@@ -26,3 +26,8 @@ TAGS
 /config.log
 /config.status
 /configure
+/bin/env
+/bin/warn-notangle
+/src/stamp-h1
+/support/build-aux/compile
+/tests/works-without-noweb.sh
