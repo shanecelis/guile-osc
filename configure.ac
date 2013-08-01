@@ -52,5 +52,6 @@ AC_CONFIG_FILES([ Makefile
 AC_CONFIG_FILES([ tests/works-without-noweb.sh ], [chmod +x tests/works-without-noweb.sh])
 AC_CONFIG_FILES([bin/env], [chmod a+x bin/env])
 AC_CONFIG_FILES([bin/warn-notangle], [chmod a+x bin/warn-notangle])
+AC_CONFIG_FILES([bin/wrapper], [chmod a+x bin/wrapper])
 
 AC_OUTPUT
