@@ -1,0 +1,417 @@
+\section{Open Sound Control Integration}
+
+Open Sound Control (OSC) is a network protocol defined ostensibly to
+control sound devices using a GUI.  However, it can be used for
+anything.  In our case, we'll use it to control our robot.  
+
+<<file:osc.scm>>=
+(define-module (osc)
+ #:use-module (ice-9 optargs)
+ #:export (last-osc-client send-osc-message start-osc-server stop-osc-server))
+
+(load-extension "libguile-osc.dylib" "init_osc")
+@ 
+
+
+Our needs for OSC are pretty modest, so this won't expose the full
+capabilities of the \verb|liblo| library.  We just want to start an
+OSC server and handle the events in Scheme.
+
+<<file:osc.h>>=
+
+void init_osc(void);
+<<file:osc.c>>=
+
+<<+ Preamble>>
+<<Includes>>
+<<Data Types>>
+<<State>>
+<<Helper Functions>>
+<<Primitives>>
+<<Includes>>=
+
+#ifndef SCM_MAGIC_SNARFER
+#include <lo/lo.h>
+#endif
+#include <libguile.h>
+@ 
+\subsection{Start OSC Server}
+
+<<State>>=
+
+static lo_server_thread st = NULL;
+<<Primitives>>=
+
+SCM_DEFINE (start_osc_server, "start-osc-server", 0, 1, 0,
+            (SCM port),
+            "Start an OSC server.")
+{
+  if (st)
+    scm_misc_error("server-running", 
+                   "An OSC server is already running.", 
+                   SCM_EOL);
+
+  char *port_string;
+  if (SCM_UNBNDP(port)) 
+    port_string = (char *) "7770";
+  else
+    port_string = scm_to_locale_string(scm_number_to_string(port, scm_from_int(10)));
+  
+  /* start a new server on port 7770 */
+  lo_server_thread st = lo_server_thread_new(port_string, osc_error);
+
+  /* add method that will match any path and args */
+  lo_server_thread_add_method(st, NULL, NULL, osc_handler, NULL);
+
+  /* add method that will match the path /foo/bar, with two numbers, coerced
+   * to float and int */
+  //lo_server_thread_add_method(st, "/foo/bar", "fi", foo_handler, NULL);
+int osc_quit_handler(const char *path, const char *types, lo_arg **argv, int argc,
+                     void *data, void *user_data);
+  /* add method that will match the path /quit with no args */
+  lo_server_thread_add_method(st, "/quit", "", osc_quit_handler, NULL);
+
+  lo_server_thread_start(st);
+
+  return SCM_BOOL_T;
+}
+@ \subsection{Stop OSC Server}
+
+<<Primitives>>=
+
+SCM_DEFINE (stop_osc_server, "stop-osc-server", 0, 0, 0,
+            (),
+            "Stop an OSC server.")
+{
+  if (st) {
+    lo_server_thread_free(st);
+    return SCM_BOOL_T;
+  } else {
+    scm_misc_error("no-server-running", "No OSC server running.", SCM_EOL);
+    return SCM_BOOL_F;
+  }
+}
+<<Primitives>>=
+
+int osc_quit_handler(const char *path, const char *types, lo_arg **argv, int argc,
+                     void *data, void *user_data)
+{
+  printf("OSC server quiting\n\n");
+  fflush(stdout);
+
+  stop_osc_server();
+  return 0;
+}
+@ \subsection{Send OSC Message}
+%\end{multicols}
+<<Primitives>>=
+
+SCM_DEFINE (send_osc_message, "send-osc-message", 3, 0, 1,
+            (SCM host, SCM port, SCM path, SCM args),
+            "Send an OSC message.")
+{
+  static lo_address t = NULL;
+  static char* last_host = NULL;
+  int ret;
+  char *this_host = scm_to_locale_string(host);
+  if (t && last_host && strcmp(this_host, last_host) == 0) {
+    // Continue to use the same t.
+  } else {
+    // It's a new host.
+    // Free the old.
+    char port_string[255];
+    sprintf(port_string, "%d", scm_to_int(port));
+    if (t)
+      lo_address_free(t);
+    // Allocate the new.
+    t = lo_address_new(this_host,
+                       port_string);
+    // Remember which one it is.
+    if (last_host)
+      free(last_host);
+    last_host = strdup(this_host);
+  }
+  lo_message msg = lo_message_new();
+  while (args != SCM_EOL) {
+    SCM e = SCM_CAR(args);
+    args = SCM_CDR(args);
+    if (scm_is_integer(e) && scm_is_exact(e))
+      lo_message_add_int32(msg, scm_to_int(e));
+    // else if (scm_is_real(e))
+    //   lo_message_add_float(msg, (float) scm_to_double(e));
+    else if (scm_is_string(e))
+      lo_message_add_string(msg, scm_to_locale_string(e));
+    else if (scm_is_bytevector(e))
+    {
+      lo_blob b = lo_blob_new( SCM_BYTEVECTOR_LENGTH(e), 
+                               SCM_BYTEVECTOR_CONTENTS(e));
+      lo_message_add_blob(msg, b);
+      lo_blob_free(b);
+    }
+    // skipping int64
+    // skipping timetag
+    else if (scm_is_real(e))
+      lo_message_add_double(msg, scm_to_double(e));
+    else if (scm_is_symbol(e))
+      lo_message_add_symbol(msg, scm_to_locale_string(scm_symbol_to_string(e)));
+    else if (scm_is_true(scm_char_p(e)))
+      lo_message_add_char(msg, scm_to_int(scm_char_to_integer(e)));
+    else if (scm_is_true(e))
+      lo_message_add_true(msg);
+    else if (scm_is_false(e))
+      lo_message_add_false(msg);
+    else if (scm_is_null(e))
+            lo_message_add_nil(msg);
+    // else if (scm_is_true(scm_infinite_p(e)))
+    //   lo_message_add_infinitum(msg);
+    else {
+      fprintf(stderr, "send-osc-message error: cannot coerce into OSC type\n");
+    }
+  }
+  ret = lo_send_message(t, scm_to_locale_string(path), msg);
+  lo_message_free(msg);
+  if (ret == -1)
+    return SCM_BOOL_F;
+  else
+    return SCM_BOOL_T;
+}
+@ %\begin{multicols}{2}
+
+\subsection{Receive OSC Messages}
+
+To handle an OSC message, we need to convert it to a Scheme object.
+We create a struct to hold the context for the message.
+
+<<Data Types>>=
+
+struct osc_context {
+  const char *path; 
+  const char *types; 
+  lo_arg **argv;
+  int argc; 
+  void *data; 
+  void *user_data;
+};
+<<Helper Functions>>=
+
+int osc_handler(const char *path, const char *types, lo_arg **argv,
+                int argc, void *data, void *user_data)
+{
+  void *guile_osc_handler(void *context);
+  struct osc_context c;
+  c.path = path;
+  c.types = types;
+  c.argv = argv;
+  c.argc = argc;
+  c.data = data;
+  c.user_data = user_data;
+  scm_with_guile(guile_osc_handler, (void *)&c);
+  return 0;
+}
+@ %\end{multicols}
+<<Helper Functions>>=
+
+void *guile_osc_handler(void *context) 
+{
+  struct osc_context *c = (struct osc_context *) context;
+  int i;
+  SCM result = SCM_EOL;
+  lo_address src = lo_message_get_source((lo_message) c->data);
+  if (last_osc_client_hostname == NULL)
+    last_osc_client_hostname = strdup(lo_address_get_hostname(src));
+
+#define CONS(v) result = scm_cons(v, result)
+
+  for (i = c->argc - 1; i >= 0; i--) {
+    lo_type type = (lo_type) c->types[i];
+    lo_arg  *val = c->argv[i];
+    switch (type) {
+    case LO_INT32:
+      result = scm_cons(scm_from_int(val->i), result);      
+      break;
+    case LO_FLOAT:
+      CONS(scm_from_double((double) val->f));
+      break;
+    case LO_STRING:
+      CONS(scm_from_locale_string((char *)val));
+      break;
+    case LO_BLOB:
+    { 
+      SCM byte_vector = scm_c_make_bytevector(val->i);
+      
+      for (i = 0; i < val->i; i++) {
+        scm_c_bytevector_set_x(byte_vector, i, *((char *)(val) + 4 + i));
+      }
+      CONS(byte_vector);
+      break;
+    }
+    case LO_INT64:
+      CONS(scm_from_long_long((long long int) val->i));
+      break;
+    case LO_TIMETAG:
+      CONS(scm_cons(scm_from_uint32(val->t.sec),
+                    scm_from_uint32(val->t.frac)));
+      break;
+    case LO_DOUBLE:
+      CONS(scm_from_double(val->d));
+      break;
+    case LO_SYMBOL:
+      CONS(scm_string_to_symbol(scm_from_locale_string((char *)val)));
+      break;
+    case LO_CHAR:
+      CONS(scm_from_char(val->c));
+      break;
+    case LO_MIDI:
+      printf("warning: not handling MIDI in OSC.\n");
+      printf("MIDI [");
+      for (i=0; i<4; i++) {
+        printf("0x%02x", *((uint8_t *)(val) + i));
+        if (i+1 < 4) printf(" ");
+      }
+      printf("]");
+      break;
+    case LO_TRUE:
+      CONS(SCM_BOOL_T);
+      break;
+    case LO_FALSE:
+      CONS(SCM_BOOL_F);
+      break;
+    case LO_NIL:
+      CONS(SCM_EOL);
+      //printf("Nil");
+      break;
+    case LO_INFINITUM:
+      CONS(scm_inf());
+      break;
+    default:
+      fprintf(stderr, "osc warning: unhandled type: %c\n", type);
+      break;
+    }
+  }
+  CONS(scm_from_locale_string(c->path));
+#undef CONS
+  scm_call_1(scm_c_private_ref("guile-user", "handle-osc-event"),
+             result);
+  return 0;
+}
+@ %\begin{multicols}{2}
+\subsection{Convenience Functionality}
+
+OSC happens over UDP, so there is no persistent connection.  However,
+we would like to sometimes have some kind of bidirectional
+communication.  To achieve this, we keep track of the last host which
+sent us an OSC message.
+
+<<State>>=
+
+static char* last_osc_client_hostname = NULL;
+<<Primitives>>=
+
+SCM_DEFINE (last_osc_client, "last-osc-client", 0, 0, 0,
+            (),
+            "Return hostname or IP address of last client.")
+{
+  if (last_osc_client_hostname)
+    return scm_from_locale_string(last_osc_client_hostname);
+  else
+    return SCM_BOOL_F;
+}
+<<Helper Functions>>=
+
+void osc_error(int num, const char *msg, const char *path)
+{
+  printf("liblo server error %d in path %s: %s\n", num, path, msg);
+  fflush(stdout);
+}
+<<file:osc.c>>=
+
+void init_osc(void)
+{
+#ifndef SCM_MAGIC_SNARFER 
+#include "osc.c.x" 
+#endif
+}
+@ \subsection{Emacsy OSC Events}
+
+We can now receive OSC events that will be handled by our
+\verb|handle-osc-event| procedure.  Rather than handling the raw
+events there, we would like to pass them along to Emacsy so that it's
+easy to bind them to commands and use macros if we like.  To do that
+we need to define a new class of Emacsy events, \verb|<osc-event>|.
+This requires a class that extends \verb|<event>| and implementing the
+\verb|event->kbd| method and registering a procedure that coverts from
+a \verb|kbd| string to a \verb|<osc-event>|.
+
+<<file:osc-event.scm>>=
+
+(use-modules (oop goops)
+             (emacsy emacsy)
+  (ice-9 match)
+  (ice-9 regex))
+
+(define-class <osc-event> (<event>)
+  (osc-path #:getter osc-path #:init-keyword #:osc-path)
+  (osc-values #:getter osc-values #:init-keyword #:osc-values))
+@ Hmm, it looks like LaTeX does not like underscores \_ in our code,
+which is odd because they work fine in the C code.  Substituting \_ with \verb|xxx| to see if that helps.
+
+OHHHH, the @ is escaping from listings into LaTeX mode that's what's happening.  How to fix?  Maybe change escapechar from @ to
+
+<<file:osc-event.scm>>=
+
+(define-method (event->kbd (event <osc-event>))
+    (let* ((path (osc-path event))
+           (parsed-path (string-tokenize path (char-set-delete char-set:graphic #\/)))
+           (values (osc-values event))
+           (start-index 1)                ;; 1 for TouchOSC, 0 for Control
+         )
+  (format #f "osc-~a" (string-join parsed-path "-"))))
+<<file:osc-event.scm>>=
+
+(define-method (write (obj <osc-event>) port)
+  (display "#<osc-event " port)
+  (display (osc-path obj) port)
+  (display " " port)
+  (pp (osc-values obj) port)
+  (display " " port)
+  (display ">" port)
+  )
+<<file:osc-event.scm>>=
+
+(define-kbd-converter (kbd-entry->osc-event kbd-entry)
+    (let ((regex "^(([ACHMsS]-)*)osc-([^ ]*)$"))
+    (define (modifier-char->symbol  char)
+      (case char 
+        ((#\C) 'control)
+        ((#\M) 'meta)
+        ((#\S) 'shift)
+        ((#\A) 'super)
+        (else (warn "invalid character")
+              '())))
+    (define (get-modifier-keys match)
+      (let* ((str (match:substring match 1)))
+        (if str
+            (map modifier-char->symbol 
+                 (filter (lambda (x) (not (char=? x #\-))) (string->list str)))
+            '())))
+    (let ((match (string-match regex kbd-entry)))
+      (if match
+          (let* ((mod-keys (get-modifier-keys match)))
+            (make <osc-event> #:osc-path (match:substring match 3) #:osc-values #f))
+          #f))))
+
+<<file:osc-event.scm>>=
+
+(define (handle-osc-event event)
+  (emacsy-event (make <osc-event> #:osc-path (car event) #:osc-values (cdr event))))
+<<+ Load scheme files.>>=
+
+scm_c_primitive_load("osc-event.scm");
+@ 
+
+<<file:osc-test.scm>>=
+(use-modules (check)
+             (osc))
+
+(check #t => #f)
+@

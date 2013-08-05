@@ -25,6 +25,7 @@ AC_SUBST(guile_snarf)
 
 # Checks for libraries.
 PKG_CHECK_MODULES([GUILE], [guile-2.0])
+PKG_CHECK_MODULES([LO], [liblo])
 
 # Checks for header files.
 AC_HEADER_STDC
@@ -47,7 +48,7 @@ AC_CONFIG_FILES([ Makefile
                   src/Makefile 
                   tests/Makefile
                   support/pkg-config/Makefile
-                  support/pkg-config/guile-noweb-autotools.pc
+                  support/pkg-config/guile-osc.pc
                   ], [])
 AC_CONFIG_FILES([ tests/works-without-noweb.sh ], [chmod +x tests/works-without-noweb.sh])
 AC_CONFIG_FILES([bin/env], [chmod a+x bin/env])

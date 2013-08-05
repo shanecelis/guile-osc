@@ -3,10 +3,10 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: <my library>
-Description: <library to do something>
+Name: guile-osc
+Description: A guile library to do Open Sound Control
 URL: <homepage>
 Version: @VERSION@
-Requires: guile-2.0
-Libs: -L${libdir} -lhello-world
+Requires: guile-2.0 liblo
+Libs: -L${libdir} -lguile-osc
 Cflags: -I${includedir}
