@@ -1,4 +1,4 @@
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = guile-noweb-autools.pc
+pkgconfig_DATA = guile-osc.pc
 
-MAINTAINERCLEANFILES = guile-noweb-autotools.pc Makefile.in
+MAINTAINERCLEANFILES = guile-osc.pc Makefile.in
